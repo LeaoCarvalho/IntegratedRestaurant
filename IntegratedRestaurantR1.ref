@@ -164,12 +164,12 @@ OPERATIONS
     ri <-- getRecipeIngredients(rr) =
     PRE rr : dom(recipes_arr |> {TRUE})
     THEN 
-        VAR rings IN
-            rings := { ii | ii : 0..max_ingredients_sze-1 & recipeIngredients_mtx(rr, ii) /= 0 };
+        VAR recipe_ingredients IN
+            recipe_ingredients := { ii | ii : 0..max_ingredients_sze-1 & recipeIngredients_mtx(rr, ii) /= 0 };
             ANY idxToRecipeIngredient WHERE
-                idxToRecipeIngredient : perm(rings)
+                idxToRecipeIngredient : perm(recipe_ingredients)
             THEN ri :=
-                %ii.(ii : 0..card(rings)-1 |
+                %ii.(ii : 0..card(recipe_ingredients)-1 |
                     idxToRecipeIngredient(ii+1)
               )
             END
@@ -256,10 +256,15 @@ OPERATIONS
     si <-- getIngredientAmountToShop(ii) =
     PRE ii : dom(ingredients_arr |> {TRUE})
     THEN si :=
-        SIGMA(rr).(rr : dom(menu_arr |> {TRUE}) |
-            expectedMenu_arr(rr) *
-            recipeIngredients_mtx(rr,ii)
-        ) - inventory_arr(ii)
+        max(
+            {
+                SIGMA(rr).(rr : dom(menu_arr |> {TRUE}) |
+                    expectedMenu_arr(rr) *
+                    recipeIngredients_mtx(rr,ii)
+                ) - inventory_arr(ii),
+                0
+            }
+        )        
     END;
  
 //    2 - Inventário 
@@ -281,107 +286,71 @@ OPERATIONS
     THEN am := inventory_arr(ii)
     END;
 
-////    3 - Serviço 
-//
-    makeOrder(tt, rr, am) =
-        skip;
-    
-//    PRE tt : tables & rr : menu & am :NAT1 & ({rr |-> 0} <+ pendingOrders(tt))(rr) + am : NAT1
-//        & !ii.(
-//            ii: ingredients => 
-//            SIGMA(r1).( r1 : menu |
-//                (
-//                    SIGMA(t1).(t1: tables | ({r1 |-> 0} <+ (pendingOrders(t1)))(r1)) 
-//                    + 
-//                    ({r1 |-> 0} <+ {rr |-> am})(r1)
-//                )
-//                *
-//                ({ii |-> 0} <+ recipeIngredients(r1))(ii)
-//            ) <= inventory(ii)
-//            
-//        )
-//    THEN pendingOrders(tt)(rr) := ({rr |-> 0} <+ pendingOrders(tt))(rr) + am
-//    END;
-//  
-    cancelOrder(tt, rr, am) =
-        skip;
-    
-//    PRE tt : tables & rr : menu & am :NAT1 & ({rr |-> 0} <+ pendingOrders(tt))(rr) >= am
-//    THEN
-//        IF ({rr |-> 0} <+ pendingOrders(tt))(rr) = am
-//        THEN pendingOrders(tt) := {rr} <<| pendingOrders(tt)
-//        ELSE pendingOrders(tt)(rr) := pendingOrders(tt)(rr) - am 
-//        END
-//    END;
-//    
-    pr <-- getTablePendingRecipes(tt) =
-        skip;
-    
-//    PRE tt: tables
-//    THEN
-//        ANY idxToMenuRecipe WHERE
-//            idxToMenuRecipe : perm(dom(pendingOrders(tt)))
-//        THEN pr :=
-//            %ii.(ii : 0..card(dom(pendingOrders(tt)))-1 |
-//                idxToMenuRecipe(ii+1)
-//          )
-//        END    
-//    END;
-//    
-    resp <-- preGetTablePendingRecipeAmount(tt, rr) =
-        skip;
-    
-//    PRE tt: tables & rr : menu
-//    THEN
-//        IF rr : dom(pendingOrders(tt))
-//        THEN resp := yes
-//        ELSE resp := no
-//        END
-//    END;
-//    
-    pr <-- getTablePendingRecipeAmount(tt, rr) =
-        skip;
+//    3 - Serviço 
 
-//    PRE tt: tables & rr : menu & rr : dom(pendingOrders(tt))
-//    THEN pr := pendingOrders(tt)(rr)
-//    END;
-//    
+    makeOrder(tt, rr, am) =
+    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE}) & am :NAT1
+    THEN pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) + am
+    END;
+     
+    cancelOrder(tt, rr, am) =
+    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE}) & am :NAT1
+    THEN pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) - am 
+    END;
+    
+    pr <-- getTablePendingRecipes(tt) =
+    PRE tt : dom(tables_arr |> {TRUE})
+    THEN
+        VAR pending_recipes IN
+            pending_recipes := {rr | rr : dom(menu_arr |> {TRUE}) & pendingOrder_mtx(tt, rr) > 0};
+            ANY idxToMenuRecipe WHERE
+                idxToMenuRecipe : perm(pending_recipes)
+            THEN pr :=
+                %ii.(ii : 0..card(pending_recipes)-1 |
+                    idxToMenuRecipe(ii+1)
+              )
+            END
+        END
+    END;
+    
+    resp <-- preGetTablePendingRecipeAmount(tt, rr) =
+    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE})
+    THEN 
+        IF pendingOrder_mtx(tt,rr) /= 0
+        THEN resp := yes
+        ELSE resp := no
+        END        
+    END;
+    
+    pr <-- getTablePendingRecipeAmount(tt, rr) =
+    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE})
+    THEN pr := pendingOrder_mtx(tt,rr)
+    END;
+
     completeOrder(tt, rr, am) =
-        skip;
+    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE}) & am :NAT1
+    THEN
+        pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt,rr) - am;
+        completedOrder_arr(rr) := completedOrder_arr(rr) + am;
+        inventory_arr :=
+            %ii.(ii : dom(ingredients_arr |> {TRUE})| inventory_arr(ii) - recipeIngredients_mtx(rr, ii) * am)
+    END;
+      
+//    4 - Análise 
     
-//    PRE tt : tables & rr : menu & am :NAT1 & pendingOrders(tt)(rr) >= am & (completedOrders(rr) + am) : NAT1
-//    THEN completedOrders(rr) := completedOrders(rr) + am ||
-//         inventory := %ii.(ii : ingredients & ii /: dom(recipeIngredients(rr)) | inventory(ii))
-//                    \/ %ii.(ii : ingredients & ii : dom(recipeIngredients(rr)) | inventory(ii) - (recipeIngredients(rr)(ii) * am))||
-//        IF ({rr |-> 0} <+ pendingOrders(tt))(rr) = am
-//        THEN pendingOrders(tt) := {rr} <<| pendingOrders(tt)
-//        ELSE pendingOrders(tt)(rr) := pendingOrders(tt)(rr) - am 
-//        END        
-//    END;
-//    
-////    4 - Análise 
-//    
     me <-- getMenuRecipeExpectation(rr) =
-        skip;
-    
-//    PRE rr: menu
-//    THEN me:= expectedMenu(rr)
-//    END;
-//    
+    PRE rr : dom(menu_arr |> {TRUE})
+    THEN me := expectedMenu_arr(rr)
+    END;
+
     me <-- getMenuRecipeCompletion(rr) =
-        skip;
+    PRE rr : dom(menu_arr |> {TRUE})
+    THEN me := completedOrder_arr(rr)
+    END;
+
+//    5 - Deletar dados
     
-//    PRE rr: menu
-//    THEN me:= completedOrders(rr)
-//    END;
-//
-////    5 - Deletar dados
-//    
     beginNewDay =
-        skip
-    
-//    PRE !tt.(tt : tables => dom(pendingOrders(tt)) = {})
-//    THEN completedOrders := menu * {0}
-//    END
-//
+    completedOrder_arr := (0..max_recipes_sze-1) * {0}
+
 END

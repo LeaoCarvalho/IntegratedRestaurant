@@ -226,10 +226,16 @@ OPERATIONS
     si <-- getIngredientAmountToShop(ii) =
     PRE ii : ingredients
     THEN  si :=   
-        SIGMA(rr).(rr : menu |
-            expectedMenu(rr) *
-            ({ii |-> 0} <+ recipeIngredients(rr))(ii)
-        ) - inventory(ii)
+        max(
+            {
+                SIGMA(rr).(rr : menu |
+                    expectedMenu(rr) *
+                    ({ii |-> 0} <+ recipeIngredients(rr))(ii)
+                ) - inventory(ii),
+                0
+            }
+        )
+
     END;
     
 //    2 - Inventário 
