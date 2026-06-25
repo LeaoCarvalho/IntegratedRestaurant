@@ -9,12 +9,14 @@ REFINES IntegratedRestaurant
 //    max_ingredients_sze : NAT & max_recipes_sze : NAT & max_tables_sze : NAT
     
 VARIABLES
-    ingredients_sze, ingredients_arr, recipes_sze, recipes_arr, menu_arr, tables_sze, tables_arr, ingredientName_arr, recipeName_arr, inventory_arr, expectedMenu_arr, completedOrder_arr, recipeIngredients_mtx, pendingOrder_mtx
+    ingredients_sze, ingredients_arr, recipes_sze, recipes_arr, menu_sze, menu_arr, tables_sze, tables_arr, ingredientName_arr, recipeName_arr, inventory_arr, expectedMenu_arr, completedOrder_arr, recipeIngredients_mtx, pendingOrder_mtx
     
 INVARIANT
     ingredients_sze : NAT
     & ingredients_arr : (0..max_ingredients_sze-1) --> BOOL
     & recipes_sze : NAT
+    & menu_sze : NAT
+    & menu_sze <= recipes_sze
     & menu_arr : (0..max_recipes_sze-1) --> BOOL
     & tables_sze : NAT
     & ingredients = dom(ingredients_arr |> {TRUE})
@@ -43,6 +45,7 @@ INVARIANT
 INITIALISATION
     ingredients_sze := 0
     || recipes_sze := 0
+    || menu_sze := 0
     || ingredients_arr := (0..max_ingredients_sze-1) * {FALSE}
     || recipes_arr := (0..max_recipes_sze-1) * {FALSE}
     || tables_arr := (0..max_tables_sze-1) * {FALSE}
@@ -60,10 +63,9 @@ INITIALISATION
 
 OPERATIONS
     
-    //    1 - Preparação do menu
+//    1 - Preparação do menu
     idx <-- addIngredient(name) =
-    PRE name : INGREDIENTNAME
-    THEN
+    BEGIN
         ANY ii WHERE
             ii : dom(ingredients_arr |> {FALSE})
         THEN
@@ -75,17 +77,13 @@ OPERATIONS
     END;
    
     deleteIngredient(ii) =
-    PRE ii : dom(ingredients_arr |> {TRUE})
-    THEN
+    BEGIN
         ingredients_arr(ii) := FALSE;
         ingredients_sze := ingredients_sze - 1
     END;    
         
     renameIngredient(ii, name) =
-    PRE ii : dom(ingredients_arr |> {TRUE}) & name : INGREDIENTNAME
-    THEN
-        ingredientName_arr(ii) := name
-    END;    
+        ingredientName_arr(ii) := name;    
         
     il <-- getIngredientList =
     ANY idxToIngredient WHERE
@@ -97,14 +95,10 @@ OPERATIONS
     END;
         
     in <-- getIngredientName(ii) =
-    PRE ii : dom(ingredients_arr |> {TRUE})
-    THEN
-        in := ingredientName_arr(ii)
-    END;
+        in := ingredientName_arr(ii);
         
     idx <-- addRecipe(name) =
-    PRE name : RECIPENAME
-    THEN
+    BEGIN
         ANY ii WHERE
             ii : dom(recipes_arr |> {FALSE})
         THEN
@@ -116,15 +110,13 @@ OPERATIONS
     END;
     
     deleteRecipe(rr) =
-    PRE rr : dom(recipes_arr |> {TRUE})
-    THEN
+    BEGIN
         recipes_arr(rr) := FALSE;
         recipes_sze := recipes_sze - 1
     END;
         
     renameRecipe(rr, name) =   
-    PRE rr : dom(recipes_arr |> {TRUE}) & name : RECIPENAME
-    THEN    
+    BEGIN    
         recipeName_arr(rr) := name
     END;
 
@@ -138,32 +130,27 @@ OPERATIONS
     END;
         
     rn <-- getRecipeName(rr) =  
-    PRE rr : dom(recipes_arr |> {TRUE})
-    THEN
+    BEGIN
         rn := recipeName_arr(rr)
     END;    
         
     addIngredientToRecipe(ii, rr, am) =
-    PRE ii : dom(ingredients_arr |> {TRUE}) & rr : dom(recipes_arr |> {TRUE}) & am : NAT
-    THEN    
+    BEGIN    
         recipeIngredients_mtx(rr, ii) := am
     END;    
         
     updateIngredientAmount(ii, rr, am) = 
-    PRE ii : dom(ingredients_arr |> {TRUE}) & rr : dom(recipes_arr |> {TRUE}) & am : NAT
-    THEN    
+    BEGIN    
         recipeIngredients_mtx(rr, ii) := am
     END;
         
     removeIngredientOfRecipe(ii, rr) =
-    PRE ii : dom(ingredients_arr |> {TRUE}) & rr : dom(recipes_arr |> {TRUE})
-    THEN    
+    BEGIN    
         recipeIngredients_mtx(rr, ii) := 0
     END;
         
     ri <-- getRecipeIngredients(rr) =
-    PRE rr : dom(recipes_arr |> {TRUE})
-    THEN 
+    BEGIN 
         VAR recipe_ingredients IN
             recipe_ingredients := { ii | ii : 0..max_ingredients_sze-1 & recipeIngredients_mtx(rr, ii) /= 0 };
             ANY idxToRecipeIngredient WHERE
@@ -177,8 +164,7 @@ OPERATIONS
     END;    
     
     resp <-- preGetRecipeIngredientAmount(rr, ii) =
-    PRE rr : dom(recipes_arr |> {TRUE}) & ii : dom(ingredients_arr |> {TRUE})
-    THEN
+    BEGIN
         IF recipeIngredients_mtx(rr, ii) = 0
         THEN resp := no
         ELSE resp := yes
@@ -186,29 +172,27 @@ OPERATIONS
     END;
         
     ia <-- getRecipeIngredientAmount(rr, ii) =  
-    PRE rr : dom(recipes_arr |> {TRUE}) & ii : dom(ingredients_arr |> {TRUE})
-    THEN
+    BEGIN
         ia := recipeIngredients_mtx(rr,ii)
     END;    
 
     addRecipeToMenu(rr, am) =
-    PRE rr : dom(recipes_arr |> {TRUE}) & am : NAT1
-    THEN
+    BEGIN
         menu_arr(rr) := TRUE;
-        expectedMenu_arr(rr) := am
+        expectedMenu_arr(rr) := am;
+        menu_sze := menu_sze + 1
     END;
     
     uptadeMenuRecipeExpectation(rr, am) =
-    PRE rr : dom(recipes_arr |> {TRUE}) & am : NAT1
-    THEN
+    BEGIN
         expectedMenu_arr(rr) := am
     END;
 
     removeRecipeFromMenu(rr) =
-    PRE rr : dom(recipes_arr |> {TRUE})
-    THEN
+    BEGIN
         menu_arr(rr) := FALSE;
-        expectedMenu_arr(rr) := 0
+        expectedMenu_arr(rr) := 0;
+        menu_sze := menu_sze - 1
     END;
    
     ml <-- getMenuList =
@@ -221,25 +205,19 @@ OPERATIONS
     END;
    
     em <-- getExpectedMenu(rr) =
-    PRE rr : dom(recipes_arr |> {TRUE})
-    THEN
-        em := expectedMenu_arr(rr)
-    END;
+        em := expectedMenu_arr(rr);
   
     idx <-- addTable =
-    BEGIN
-        ANY ii WHERE
-            ii : dom(tables_arr |> {FALSE})
-        THEN
-            tables_arr(ii) := TRUE;
-            idx := ii;
-            tables_sze := tables_sze + 1
-        END
+    ANY ii WHERE
+        ii : dom(tables_arr |> {FALSE})
+    THEN
+        tables_arr(ii) := TRUE;
+        idx := ii;
+        tables_sze := tables_sze + 1
     END;
 
     removeTable(tt) =
-    PRE tt : dom(tables_arr |> {TRUE})
-    THEN
+    BEGIN
         tables_arr(tt) := FALSE;
         tables_sze := tables_sze - 1
     END;  
@@ -254,9 +232,7 @@ OPERATIONS
     END;
    
     si <-- getIngredientAmountToShop(ii) =
-    PRE ii : dom(ingredients_arr |> {TRUE})
-    THEN si :=
-        max(
+        si := max(
             {
                 SIGMA(rr).(rr : dom(menu_arr |> {TRUE}) |
                     expectedMenu_arr(rr) *
@@ -264,43 +240,28 @@ OPERATIONS
                 ) - inventory_arr(ii),
                 0
             }
-        )        
-    END;
+        );
  
 //    2 - Inventário 
     
     addItemToInventory(ii, am) =
-    PRE ii : dom(ingredients_arr |> {TRUE}) & am : NAT1
-    THEN    
-        inventory_arr(ii) := inventory_arr(ii) + am
-    END; 
+        inventory_arr(ii) := inventory_arr(ii) + am;
 
     removeItemOfInventory(ii, am) =
-    PRE ii : dom(ingredients_arr |> {TRUE}) & am : NAT1
-    THEN 
-        inventory_arr(ii) := inventory_arr(ii) - am
-    END; 
+        inventory_arr(ii) := inventory_arr(ii) - am;
        
     am <-- getItemInventoryAmount(ii) =
-    PRE ii : dom(ingredients_arr |> {TRUE})
-    THEN am := inventory_arr(ii)
-    END;
+        am := inventory_arr(ii);
 
 //    3 - Serviço 
 
     makeOrder(tt, rr, am) =
-    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE}) & am :NAT1
-    THEN pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) + am
-    END;
+        pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) + am;
      
     cancelOrder(tt, rr, am) =
-    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE}) & am :NAT1
-    THEN pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) - am 
-    END;
+        pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) - am;
     
     pr <-- getTablePendingRecipes(tt) =
-    PRE tt : dom(tables_arr |> {TRUE})
-    THEN
         VAR pending_recipes IN
             pending_recipes := {rr | rr : dom(menu_arr |> {TRUE}) & pendingOrder_mtx(tt, rr) > 0};
             ANY idxToMenuRecipe WHERE
@@ -310,26 +271,19 @@ OPERATIONS
                     idxToMenuRecipe(ii+1)
               )
             END
-        END
-    END;
+        END;
     
     resp <-- preGetTablePendingRecipeAmount(tt, rr) =
-    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE})
-    THEN 
         IF pendingOrder_mtx(tt,rr) /= 0
         THEN resp := yes
         ELSE resp := no
-        END        
-    END;
+        END;
     
     pr <-- getTablePendingRecipeAmount(tt, rr) =
-    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE})
-    THEN pr := pendingOrder_mtx(tt,rr)
-    END;
+        pr := pendingOrder_mtx(tt,rr);
 
     completeOrder(tt, rr, am) =
-    PRE tt : dom(tables_arr |> {TRUE}) & rr : dom(menu_arr |> {TRUE}) & am :NAT1
-    THEN
+    BEGIN
         pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt,rr) - am;
         completedOrder_arr(rr) := completedOrder_arr(rr) + am;
         inventory_arr :=
@@ -339,14 +293,10 @@ OPERATIONS
 //    4 - Análise 
     
     me <-- getMenuRecipeExpectation(rr) =
-    PRE rr : dom(menu_arr |> {TRUE})
-    THEN me := expectedMenu_arr(rr)
-    END;
+        me := expectedMenu_arr(rr);
 
     me <-- getMenuRecipeCompletion(rr) =
-    PRE rr : dom(menu_arr |> {TRUE})
-    THEN me := completedOrder_arr(rr)
-    END;
+        me := completedOrder_arr(rr);
 
 //    5 - Deletar dados
     
