@@ -9,6 +9,7 @@ SETS
 PROPERTIES
     insze : NAT1 & card(INGREDIENTNAME) = insze & rnsze : NAT1 & card(RECIPENAME) = rnsze
     & max_ingredients_sze : NAT1 & max_recipes_sze : NAT1 & max_tables_sze : NAT1
+    & insze >= max_ingredients_sze & rnsze >= max_ingredients_sze
     & no_name_i : INGREDIENTNAME
     & no_name_r : RECIPENAME
 
@@ -246,7 +247,7 @@ OPERATIONS
     END;
     
     removeItemOfInventory(ii, am) =
-    PRE ii : ingredients & am : NAT1
+    PRE ii : ingredients & am : NAT1 & (inventory(ii) - am) : NAT
         & SIGMA(rr).( rr : menu |
             SIGMA(tt).(tt: tables | ({rr |-> 0} <+ pendingOrders(tt))(rr))
             *
