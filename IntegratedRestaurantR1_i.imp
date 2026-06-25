@@ -1,0 +1,357 @@
+IMPLEMENTATION IntegratedRestaurantR1_i
+REFINES IntegratedRestaurantR1
+    
+CONCRETE_VARIABLES
+    ingredients_sze, ingredients_arr, recipes_sze, recipes_arr, menu_sze, menu_arr, tables_sze, tables_arr, ingredientName_arr, recipeName_arr, inventory_arr, expectedMenu_arr, completedOrder_arr, recipeIngredients_mtx, pendingOrder_mtx
+
+VALUES
+    insze = 10000; rnsze = 10000;
+    max_ingredients_sze = 1000; max_recipes_sze = 1000; max_tables_sze = 1000;
+    no_name_i = 0; no_name_r = 0;
+    INGREDIENTNAME = 0..insze-1; RECIPENAME = 0..rnsze-1
+    
+INITIALISATION
+    ingredients_sze := 0;
+    recipes_sze := 0;
+    menu_sze := 0;
+    ingredients_arr := (0..max_ingredients_sze-1) * {FALSE};
+    recipes_arr := (0..max_recipes_sze-1) * {FALSE};
+    tables_arr := (0..max_tables_sze-1) * {FALSE};
+    menu_arr := (0..max_recipes_sze-1) * {FALSE};
+    tables_sze := 0;
+    ingredientName_arr := (0..max_ingredients_sze-1) * {no_name_i};
+    recipeName_arr := (0..max_recipes_sze-1) * {no_name_r};
+    inventory_arr := (0..max_ingredients_sze-1) * {0};
+    expectedMenu_arr := (0..max_recipes_sze-1) * {0};
+    completedOrder_arr := (0..max_recipes_sze-1) * {0};
+    recipeIngredients_mtx := (0..max_recipes_sze-1) * (0..max_ingredients_sze-1) * {0};
+    pendingOrder_mtx := (0..max_tables_sze-1) * (0..max_recipes_sze-1) * {0}
+
+OPERATIONS
+    
+//    todo: retornar szes dos queries de recipe, ingridients, menu, tables [RETROATIVO]
+
+//    1 - Preparação do menu
+    idx <-- addIngredient(name) =
+    BEGIN
+        VAR ii IN ii := 0;
+            WHILE ingredients_arr(ii) = TRUE
+            DO
+                ii := ii + 1
+            INVARIANT 
+                ii : 0..max_ingredients_sze-1 &
+                ingredients_arr : (0..max_ingredients_sze-1) --> BOOL &
+                (
+                    ingredients_arr(ii) = FALSE or 
+                    card(dom(ii..max_ingredients_sze-1 <| ingredients_arr |> {TRUE})) < max_ingredients_sze - ii
+                )
+            VARIANT max_ingredients_sze - ii
+            END;
+            ingredients_arr(ii) := TRUE;
+            ingredientName_arr(ii) := name;
+            idx := ii;
+            ingredients_sze := ingredients_sze + 1
+        END        
+    END;
+   
+    deleteIngredient(ii) =
+    BEGIN
+        ingredients_arr(ii) := FALSE;
+        ingredients_sze := ingredients_sze - 1
+    END;    
+        
+    renameIngredient(ii, name) =
+        ingredientName_arr(ii) := name;    
+        
+    il <-- getIngredientList =
+    VAR ii, jj IN ii := 0; jj := 0;
+        WHILE jj /= ingredients_sze
+        DO
+            IF ingredients_arr(ii) = TRUE
+            THEN 
+                il(jj) := ii;
+                jj := jj + 1
+            END;
+            ii := ii + 1
+        INVARIANT 
+            ii : 0..max_ingredients_sze &
+            jj : 0..ingredients_sze &
+            il : 0..ingredients_sze-1 --> 0..max_ingredients_sze-1 &
+            (0..jj-1 <| il) : 0..ingredients_sze-1 >-> 0..max_ingredients_sze-1 &
+            il[0..jj-1] <: dom(ingredients_arr |> {TRUE})
+        VARIANT
+            max_ingredients_sze - ii
+        END
+    END;
+        
+    in <-- getIngredientName(ii) =
+        in := ingredientName_arr(ii);
+        
+    idx <-- addRecipe(name) =
+    BEGIN
+        VAR ii IN ii := 0;
+            WHILE recipes_arr(ii) = TRUE
+            DO
+                ii := ii + 1
+            INVARIANT 
+                ii : 0..max_recipes_sze-1 &
+                recipes_arr : (0..max_recipes_sze-1) --> BOOL &
+                (
+                    recipes_arr(ii) = FALSE or 
+                    card(dom(ii..max_recipes_sze-1 <| recipes_arr |> {TRUE})) < max_recipes_sze - ii
+                )
+            VARIANT max_recipes_sze - ii
+            END;
+            recipes_arr(ii) := TRUE;
+            recipeName_arr(ii) := name;
+            idx := ii;
+            recipes_sze := recipes_sze + 1
+        END        
+    END;
+    
+    deleteRecipe(rr) =
+    BEGIN
+        recipes_arr(rr) := FALSE;
+        recipes_sze := recipes_sze - 1
+    END;
+        
+    renameRecipe(rr, name) =   
+    BEGIN    
+        recipeName_arr(rr) := name
+    END;
+
+    rl <-- getRecipeList =
+    VAR ii, jj IN ii := 0; jj := 0;
+        WHILE jj /= recipes_sze
+        DO
+            IF recipes_arr(ii) = TRUE
+            THEN 
+                rl(jj) := ii;
+                jj := jj + 1
+            END;
+            ii := ii + 1
+        INVARIANT 
+            ii : 0..max_recipes_sze &
+            jj : 0..recipes_sze &
+            rl : 0..recipes_sze-1 --> 0..max_recipes_sze-1 &
+            (0..jj-1 <| rl) : 0..recipes_sze-1 >-> 0..max_recipes_sze-1 &
+            rl[0..jj-1] <: dom(recipes_arr |> {TRUE})
+        VARIANT
+            max_recipes_sze - ii
+        END
+    END;
+        
+    rn <-- getRecipeName(rr) =  
+    BEGIN
+        rn := recipeName_arr(rr)
+    END;    
+        
+    addIngredientToRecipe(ii, rr, am) =
+    BEGIN    
+        recipeIngredients_mtx(rr, ii) := am
+    END;    
+        
+    updateIngredientAmount(ii, rr, am) = 
+    BEGIN    
+        recipeIngredients_mtx(rr, ii) := am
+    END;
+        
+    removeIngredientOfRecipe(ii, rr) =
+    BEGIN    
+        recipeIngredients_mtx(rr, ii) := 0
+    END;
+        
+    ri <-- getRecipeIngredients(rr) =
+    skip;
+//    BEGIN 
+//        VAR recipe_ingredients IN
+//            recipe_ingredients := { ii | ii : 0..max_ingredients_sze-1 & recipeIngredients_mtx(rr, ii) /= 0 };
+//            ANY idxToRecipeIngredient WHERE
+//                idxToRecipeIngredient : perm(recipe_ingredients)
+//            THEN ri :=
+//                %ii.(ii : 0..card(recipe_ingredients)-1 |
+//                    idxToRecipeIngredient(ii+1)
+//              )
+//            END
+//        END
+//    END;    
+    
+    resp <-- preGetRecipeIngredientAmount(rr, ii) =
+    BEGIN
+        IF recipeIngredients_mtx(rr, ii) = 0
+        THEN resp := no
+        ELSE resp := yes
+        END
+    END;
+        
+    ia <-- getRecipeIngredientAmount(rr, ii) =  
+    BEGIN
+        ia := recipeIngredients_mtx(rr,ii)
+    END;    
+
+    addRecipeToMenu(rr, am) =
+    BEGIN
+        menu_arr(rr) := TRUE;
+        expectedMenu_arr(rr) := am;
+        menu_sze := menu_sze + 1
+    END;
+    
+    uptadeMenuRecipeExpectation(rr, am) =
+    BEGIN
+        expectedMenu_arr(rr) := am
+    END;
+
+    removeRecipeFromMenu(rr) =
+    BEGIN
+        menu_arr(rr) := FALSE;
+        expectedMenu_arr(rr) := 0;
+        menu_sze := menu_sze - 1
+    END;
+   
+    ml <-- getMenuList =
+    VAR ii, jj IN ii := 0; jj := 0;
+        WHILE jj /= menu_sze
+        DO
+            IF menu_arr(ii) = TRUE
+            THEN 
+                ml(jj) := ii;
+                jj := jj + 1
+            END;
+            ii := ii + 1
+        INVARIANT 
+            ii : 0..max_recipes_sze &
+            jj : 0..menu_sze &
+            ml : 0..menu_sze-1 --> 0..max_recipes_sze-1 &
+            (0..jj-1 <| ml) : 0..menu_sze-1 >-> 0..max_recipes_sze-1 &
+            ml[0..jj-1] <: dom(menu_arr |> {TRUE})
+        VARIANT
+            max_recipes_sze - ii
+        END
+    END;
+   
+    em <-- getExpectedMenu(rr) =
+        em := expectedMenu_arr(rr);
+  
+    idx <-- addTable =
+    BEGIN
+        VAR ii IN ii := 0;
+            WHILE tables_arr(ii) = TRUE
+            DO
+                ii := ii + 1
+            INVARIANT 
+                ii : 0..max_tables_sze-1 &
+                tables_arr : (0..max_tables_sze-1) --> BOOL &
+                (
+                    tables_arr(ii) = FALSE or 
+                    card(dom(ii..max_tables_sze-1 <| tables_arr |> {TRUE})) < max_tables_sze - ii
+                )
+            VARIANT max_tables_sze - ii
+            END;
+            tables_arr(ii) := TRUE;
+            idx := ii;
+            tables_sze := tables_sze + 1
+        END        
+    END;
+
+    removeTable(tt) =
+    BEGIN
+        tables_arr(tt) := FALSE;
+        tables_sze := tables_sze - 1
+    END;  
+  
+    tl <-- getTableList =
+    VAR ii, jj IN ii := 0; jj := 0;
+        WHILE jj /= tables_sze
+        DO
+            IF tables_arr(ii) = TRUE
+            THEN 
+                tl(jj) := ii;
+                jj := jj + 1
+            END;
+            ii := ii + 1
+        INVARIANT 
+            ii : 0..max_tables_sze &
+            jj : 0..tables_sze &
+            tl : 0..tables_sze-1 --> 0..max_tables_sze-1 &
+            (0..jj-1 <| tl) : 0..tables_sze-1 >-> 0..max_tables_sze-1 &
+            tl[0..jj-1] <: dom(tables_arr |> {TRUE})
+        VARIANT
+            max_tables_sze - ii
+        END
+    END;
+   
+    si <-- getIngredientAmountToShop(ii) =
+        si := max(
+            {
+                SIGMA(rr).(rr : dom(menu_arr |> {TRUE}) |
+                    expectedMenu_arr(rr) *
+                    recipeIngredients_mtx(rr,ii)
+                ) - inventory_arr(ii),
+                0
+            }
+        );
+ 
+//    2 - Inventário 
+    
+    addItemToInventory(ii, am) =
+        inventory_arr(ii) := inventory_arr(ii) + am;
+
+    removeItemOfInventory(ii, am) =
+        inventory_arr(ii) := inventory_arr(ii) - am;
+       
+    am <-- getItemInventoryAmount(ii) =
+        am := inventory_arr(ii);
+
+//    3 - Serviço 
+
+    makeOrder(tt, rr, am) =
+        pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) + am;
+     
+    cancelOrder(tt, rr, am) =
+        pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt, rr) - am;
+    
+    pr <-- getTablePendingRecipes(tt) =
+    skip;
+//        VAR pending_recipes IN
+//            pending_recipes := {rr | rr : dom(menu_arr |> {TRUE}) & pendingOrder_mtx(tt, rr) > 0};
+//            ANY idxToMenuRecipe WHERE
+//                idxToMenuRecipe : perm(pending_recipes)
+//            THEN pr :=
+//                %ii.(ii : 0..card(pending_recipes)-1 |
+//                    idxToMenuRecipe(ii+1)
+//              )
+//            END
+//        END;
+    
+    resp <-- preGetTablePendingRecipeAmount(tt, rr) =
+        IF pendingOrder_mtx(tt,rr) /= 0
+        THEN resp := yes
+        ELSE resp := no
+        END;
+    
+    pr <-- getTablePendingRecipeAmount(tt, rr) =
+        pr := pendingOrder_mtx(tt,rr);
+
+    completeOrder(tt, rr, am) =
+    BEGIN
+        pendingOrder_mtx(tt, rr) := pendingOrder_mtx(tt,rr) - am;
+        completedOrder_arr(rr) := completedOrder_arr(rr) + am;
+        inventory_arr :=
+            %ii.(ii : dom(ingredients_arr |> {TRUE})| inventory_arr(ii) - recipeIngredients_mtx(rr, ii) * am)
+    END;
+      
+//    4 - Análise 
+    
+    me <-- getMenuRecipeExpectation(rr) =
+        me := expectedMenu_arr(rr);
+
+    me <-- getMenuRecipeCompletion(rr) =
+        me := completedOrder_arr(rr);
+
+//    5 - Deletar dados
+    
+    beginNewDay =
+    completedOrder_arr := (0..max_recipes_sze-1) * {0}
+ 
+
+ END
