@@ -60,28 +60,29 @@ OPERATIONS
     END;
     
     deleteIngredient(ii) =
-    PRE ii : ingredients & !rr.(rr : recipes => ii /: dom(recipeIngredients(rr))) & inventory(ii) = 0
+    PRE ii : NAT & ii : ingredients & !rr.(rr : recipes => ii /: dom(recipeIngredients(rr))) & inventory(ii) = 0
     THEN ingredients := ingredients - {ii} ||
         ingredientNames := {ii} <<| ingredientNames ||
         inventory := {ii} <<| inventory
     END;
     
     renameIngredient(ii, name) =
-    PRE ii : ingredients & name : INGREDIENTNAME & name /: ran(ingredientNames)
+    PRE ii : NAT & ii : ingredients & name : INGREDIENTNAME & name /: ran(ingredientNames)
     THEN ingredientNames(ii) := name
     END;
     
     il <-- getIngredientList =
     ANY idxToIngredient WHERE
-        idxToIngredient : perm(ingredients)
+        idxToIngredient : 1..card(ingredients) >-> NAT &
+        ran(idxToIngredient) = ingredients
     THEN il :=
-        %ii.(ii : 0..card(ingredients)-1 |
+        %ii.(ii : NAT & ii : 0..card(ingredients)-1 |
             idxToIngredient(ii+1)
       )
     END;
     
     in <-- getIngredientName(ii) =
-    PRE ii : ingredients
+    PRE ii: NAT & ii : ingredients
     THEN in := ingredientNames(ii)
     END;
     
@@ -99,20 +100,21 @@ OPERATIONS
     END;
     
     deleteRecipe(rr) =
-    PRE rr : recipes & rr /: menu
+    PRE rr : NAT & rr : recipes & rr /: menu
     THEN recipes := recipes - {rr} ||
         recipeIngredients := {rr} <<| recipeIngredients||
         recipeNames := {rr} <<| recipeNames
     END;
     
     renameRecipe(rr, name) =
-    PRE rr : recipes & name : RECIPENAME & name /: ran(recipeNames)
+    PRE rr : NAT & rr : recipes & name : RECIPENAME & name /: ran(recipeNames)
     THEN recipeNames(rr) := name
     END;
     
     rl <-- getRecipeList =
     ANY idxToRecipe WHERE
-        idxToRecipe : perm(recipes)
+        idxToRecipe : 1..card(recipes) >-> NAT &
+        ran(idxToRecipe) = recipes
     THEN rl :=
         %ii.(ii : 0..card(recipes)-1 |
             idxToRecipe(ii+1)
@@ -120,30 +122,31 @@ OPERATIONS
     END;
     
     rn <-- getRecipeName(rr) =
-    PRE rr : recipes
+    PRE rr : NAT & rr : recipes
     THEN rn := recipeNames(rr)
     END;
    
     addIngredientToRecipe(ii, rr, am) =
-    PRE ii : ingredients & rr : recipes & am : NAT1 & ii /: dom(recipeIngredients(rr)) & rr /: menu
+    PRE ii : NAT & ii : ingredients & rr : NAT & rr : recipes & am : NAT1 & ii /: dom(recipeIngredients(rr)) & rr /: menu
     THEN recipeIngredients(rr) := recipeIngredients(rr) \/ {ii |-> am}
     END; 
     
     updateIngredientAmount(ii, rr, am) =
-    PRE ii : ingredients & rr : recipes & am : NAT1 & ii : dom(recipeIngredients(rr)) & rr /: menu
+    PRE ii : NAT & ii : ingredients & rr : NAT & rr : recipes & am : NAT1 & ii : dom(recipeIngredients(rr)) & rr /: menu
     THEN recipeIngredients(rr)(ii) := am
     END; 
     
     removeIngredientOfRecipe(ii, rr) =
-    PRE ii : ingredients & rr : recipes & ii : dom(recipeIngredients(rr)) & rr /: menu
+    PRE ii : NAT & ii : ingredients & rr : NAT & rr : recipes & ii : dom(recipeIngredients(rr)) & rr /: menu
     THEN recipeIngredients(rr) := {ii} <<| recipeIngredients(rr)
     END;
     
     ri <-- getRecipeIngredients(rr) =
-    PRE rr: recipes
+    PRE rr : NAT & rr: recipes
     THEN
         ANY idxToRecipeIngredient WHERE
-            idxToRecipeIngredient : perm(dom(recipeIngredients(rr)))
+            idxToRecipeIngredient : 1..card(dom(recipeIngredients(rr))) >-> NAT &
+            ran(idxToRecipeIngredient) = dom(recipeIngredients(rr))
         THEN ri :=
             %ii.(ii : 0..card(dom(recipeIngredients(rr)))-1 |
                 idxToRecipeIngredient(ii+1)
@@ -152,7 +155,7 @@ OPERATIONS
     END;
     
     resp <-- preGetRecipeIngredientAmount(rr, ii) =
-    PRE rr: recipes & ii : ingredients
+    PRE rr : NAT & rr: recipes & ii: NAT & ii : ingredients
     THEN 
         IF ii : dom(recipeIngredients(rr))
             THEN resp := yes
@@ -161,24 +164,24 @@ OPERATIONS
     END;
     
     ia <-- getRecipeIngredientAmount(rr, ii) =
-    PRE rr: recipes & ii : ingredients & ii : dom(recipeIngredients(rr))
+    PRE rr : NAT & rr: recipes & ii : NAT & ii : ingredients & ii : dom(recipeIngredients(rr))
     THEN ia := recipeIngredients(rr)(ii)
     END;
 
     addRecipeToMenu(rr, am) =
-    PRE rr : recipes & rr /: menu & am : NAT1
+    PRE rr : NAT & rr : recipes & rr /: menu & am : NAT1
     THEN menu := menu \/ {rr} ||
         expectedMenu(rr) := am ||
         completedOrders(rr) := 0
     END;
     
     uptadeMenuRecipeExpectation(rr, am) =
-    PRE rr : menu & am : NAT1
+    PRE rr : NAT & rr : menu & am : NAT1
     THEN expectedMenu(rr) := am
     END;
     
     removeRecipeFromMenu(rr) =
-    PRE rr : menu & !t1.(t1: tables => rr /: dom(pendingOrders(t1))) & completedOrders(rr) = 0
+    PRE rr : NAT & rr : menu & !t1.(t1: tables => rr /: dom(pendingOrders(t1))) & completedOrders(rr) = 0
     THEN menu := menu - {rr} ||
         expectedMenu := {rr} <<| expectedMenu ||
         completedOrders := {rr} <<| completedOrders
@@ -186,7 +189,8 @@ OPERATIONS
     
     ml <-- getMenuList =
     ANY idxToMenuRecipe WHERE
-        idxToMenuRecipe : perm(menu)
+        idxToMenuRecipe : 1..card(menu) >-> NAT &
+        ran(idxToMenuRecipe) = menu
     THEN ml :=
         %ii.(ii : 0..card(menu)-1 |
             idxToMenuRecipe(ii+1)
@@ -194,7 +198,7 @@ OPERATIONS
     END;
     
     em <-- getExpectedMenu(rr) =
-    PRE rr : menu
+    PRE rr : NAT & rr : menu
     THEN em := expectedMenu(rr)
     END;
     
@@ -210,14 +214,15 @@ OPERATIONS
     END;
     
     removeTable(tt) =
-    PRE tt : tables & pendingOrders(tt) = {}
+    PRE tt : NAT & tt : tables & pendingOrders(tt) = {}
     THEN tables := tables - {tt} ||
         pendingOrders := {tt} <<| pendingOrders
     END;
     
     tl <-- getTableList =
     ANY idxToTable WHERE
-        idxToTable : perm(tables)
+        idxToTable : 1..card(tables) >-> NAT &
+        ran(idxToTable) = tables
     THEN tl :=
         %ii.(ii : 0..card(tables)-1 |
             idxToTable(ii+1)
@@ -225,7 +230,7 @@ OPERATIONS
     END;
     
     si <-- getIngredientAmountToShop(ii) =
-    PRE ii : ingredients
+    PRE ii : NAT & ii : ingredients
     THEN  si :=   
         max(
             {
@@ -242,12 +247,12 @@ OPERATIONS
 //    2 - Inventário 
     
     addItemToInventory(ii, am) =
-    PRE ii : ingredients & am : NAT1 & (inventory(ii) + am) : NAT1
+    PRE ii : NAT & ii : ingredients & am : NAT1 & (inventory(ii) + am) : NAT1
     THEN inventory(ii) := inventory(ii) + am
     END;
     
     removeItemOfInventory(ii, am) =
-    PRE ii : ingredients & am : NAT1 & (inventory(ii) - am) : NAT
+    PRE ii : NAT & ii : ingredients & am : NAT1 & (inventory(ii) - am) : NAT
         & SIGMA(rr).( rr : menu |
             SIGMA(tt).(tt: tables | ({rr |-> 0} <+ pendingOrders(tt))(rr))
             *
@@ -257,7 +262,7 @@ OPERATIONS
     END;
     
     am <-- getItemInventoryAmount(ii) =
-    PRE ii : ingredients
+    PRE ii : NAT & ii : ingredients
     THEN am := inventory(ii)
     END;
     
@@ -265,7 +270,7 @@ OPERATIONS
 //    3 - Serviço 
 
     makeOrder(tt, rr, am) =
-    PRE tt : tables & rr : menu & am :NAT1 & ({rr |-> 0} <+ pendingOrders(tt))(rr) + am : NAT1
+    PRE tt : NAT & tt : tables & rr : NAT & rr : menu & am :NAT1 & ({rr |-> 0} <+ pendingOrders(tt))(rr) + am : NAT1
         & !ii.(
             ii: ingredients => 
             SIGMA(r1).( r1 : menu |
@@ -283,7 +288,7 @@ OPERATIONS
     END;
   
     cancelOrder(tt, rr, am) =
-    PRE tt : tables & rr : menu & am :NAT1 & ({rr |-> 0} <+ pendingOrders(tt))(rr) >= am
+    PRE tt : NAT & tt : tables & rr : NAT & rr : menu & am :NAT1 & ({rr |-> 0} <+ pendingOrders(tt))(rr) >= am
     THEN
         IF ({rr |-> 0} <+ pendingOrders(tt))(rr) = am
         THEN pendingOrders(tt) := {rr} <<| pendingOrders(tt)
@@ -292,10 +297,11 @@ OPERATIONS
     END;
     
     pr <-- getTablePendingRecipes(tt) =
-    PRE tt: tables
+    PRE tt : NAT & tt: tables
     THEN
         ANY idxToMenuRecipe WHERE
-            idxToMenuRecipe : perm(dom(pendingOrders(tt)))
+            idxToMenuRecipe : 1..card(dom(pendingOrders(tt))) >-> NAT &
+            ran(idxToMenuRecipe) = dom(pendingOrders(tt))
         THEN pr :=
             %ii.(ii : 0..card(dom(pendingOrders(tt)))-1 |
                 idxToMenuRecipe(ii+1)
@@ -304,7 +310,7 @@ OPERATIONS
     END;
     
     resp <-- preGetTablePendingRecipeAmount(tt, rr) =
-    PRE tt: tables & rr : menu
+    PRE tt : NAT & tt: tables & rr : NAT & rr : menu
     THEN
         IF rr : dom(pendingOrders(tt))
         THEN resp := yes
@@ -313,12 +319,12 @@ OPERATIONS
     END;
     
     pr <-- getTablePendingRecipeAmount(tt, rr) =
-    PRE tt: tables & rr : menu & rr : dom(pendingOrders(tt))
+    PRE tt : NAT & tt: tables & rr : NAT & rr : menu & rr : dom(pendingOrders(tt))
     THEN pr := pendingOrders(tt)(rr)
     END;
     
     completeOrder(tt, rr, am) =
-    PRE tt : tables & rr : menu & am :NAT1 & pendingOrders(tt)(rr) >= am & (completedOrders(rr) + am) : NAT1
+    PRE tt : NAT & tt : tables & rr : NAT & rr : menu & am :NAT1 & pendingOrders(tt)(rr) >= am & (completedOrders(rr) + am) : NAT1
     THEN completedOrders(rr) := completedOrders(rr) + am ||
          inventory := %ii.(ii : ingredients & ii /: dom(recipeIngredients(rr)) | inventory(ii))
                     \/ %ii.(ii : ingredients & ii : dom(recipeIngredients(rr)) | inventory(ii) - (recipeIngredients(rr)(ii) * am))||
@@ -331,12 +337,12 @@ OPERATIONS
 //    4 - Análise 
     
     me <-- getMenuRecipeExpectation(rr) =
-    PRE rr: menu
+    PRE rr : NAT & rr: menu
     THEN me:= expectedMenu(rr)
     END;
     
     me <-- getMenuRecipeCompletion(rr) =
-    PRE rr: menu
+    PRE rr : NAT & rr: menu
     THEN me:= completedOrders(rr)
     END;
 
